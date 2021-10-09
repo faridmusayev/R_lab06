@@ -1,0 +1,68 @@
+
+#' Brute Force Knapsack
+
+#'
+#' @param x Data frame with two numeric columns: weights and values
+#' @param W Total weight of the knapsack
+#' @param parallel logical parameter for parallel computation, if parallel TRUE
+#'
+#' @return
+#' List with numbers of items that can be put into knapsack and maximum obtained value
+#'
+#' @import paralel
+#' @export
+
+brute_force_knapsack <- function(x, W , parallel=FALSE) {
+  if(!is.data.frame(x) | ncol(x)!=2) 
+    stop("The input object is wrong!")
+  if(!(all(colnames(x)==c("v", "w")) | all(colnames(x)==c("w", "v"))))
+    stop("The data.frame has to include the columns named 'v' and 'w'.")
+  if(!is.numeric(x$v)) 
+    stop("Column of values (v) is not numeric.")
+  if(!is.numeric(x$w)) 
+    stop("Column of weights (w) is not numeric.")
+  if(!is.numeric(W) | length(W)!=1 | W<=0) 
+    stop("The total weight (W) has to be a positive scalar.")
+  rownames(x) <- 1:nrow(x)
+  t <- nrow(x)
+  lead_value <- 0
+  lead_index <- 0
+  if(parallel==FALSE){
+    
+    j <- 1
+    bits <- intToBits(j)
+    
+    while(bits[t+1]==0) {
+      indx <- which(bits==1)
+      if(sum(x$w[indx])<=W & sum(x$v[indx])>lead_value) {
+        lead_value <- sum(x$v[indx])
+        lead_index <- as.numeric(rownames(x)[indx])
+      }
+      j <- j+1
+      bits <- intToBits(j)
+    }
+    return(list(value = lead_value, elements = lead_index))
+  } else {
+    
+    # Calculate the no of Cores
+    number_cores <- parallel::detectCores()-1
+    
+    # Start the cluster
+    cl <- parallel::makeCluster(number_cores)
+    
+    parallel::clusterExport(cl,list("x","lead_value","lead_index","W") , envir = environment())
+    
+    fun<-function(j){
+      ind <- which(intToBits(j) == 1)
+      if(sum(x$w[indx])<=W & sum(x$v[indx])>lead_value){
+        lead_value <<- sum(x$v[indx])
+        lead_index <<- as.numeric(rownames(x)[indx])
+      } 
+      return(list(value = lead_value, elements = lead_index))
+    }
+    res = parallel::parLapply(cl,1:(2^t-1),fun)
+    parallel::stopCluster(cl)
+    return(list(value = res[[2^t-1]]$value, elements = res[[2^t-1]]$elements))
+  }
+  
+}
