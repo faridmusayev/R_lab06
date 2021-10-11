@@ -16,7 +16,7 @@ vignette: >
 
 ***rmarkdown***
 
-***ggplot2***
+***parallel***
 
 ### Knapsack Problem
 **Introduction**
@@ -277,6 +277,4 @@ greedy_knapsack(x = knapsack_objects[1:800,], W = 3500)
 
 ```
 
-```{r setup}
-library(lab06)
-```
+
