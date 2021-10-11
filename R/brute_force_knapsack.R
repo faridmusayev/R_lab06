@@ -31,7 +31,7 @@ brute_force_knapsack<-function(x,W,parallel=FALSE){
   if (parallel==TRUE){
 
 
-    cl<-makeCluster(4,"PSOCK")
+    cl<-makeCluster(4,"SOCK")
 
     clusterExport(cl,"n")
 
