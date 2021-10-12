@@ -17,73 +17,72 @@
 #'
 #'
 #'
-#'
-brute_force_knapsack<-function(x,W,parallel=FALSE){
-
-  if (length(colnames(x))!=2 || !is.numeric(W) || !all(colnames(x)==c("w","v")) || !is.data.frame(x) || !all(x[,'w']>0) || !all(x[,'w']>0) || W<0)  stop("Wrong input")
-
-  v = x[,'v']
-  w = x[,'w']
-  n=length(w)
-
-  #define logical argument parallel to apply parLapply/lapply
-
-  if (parallel==TRUE){
-
-
-    cl<-makeCluster(4,"SOCK")
-
-    clusterExport(cl,"n")
-
-    #create all possible combinations of 0 and 1 for n items using parLapply
-
-    bin<-parLapply(cl,0:(2^n-1), function(x) head(as.integer(intToBits(x)),n))
-    stopCluster(cl)
+brute_force_knapsack <- function(x,W, parallel = FALSE){
+  
+  if(!is.data.frame(x) || W < 0){
+    stop("Wrong Input")
   }
-
-  if (parallel==FALSE){
-
-    #create all possible combinations of 0 and 1 for n items using lapply
-
-    bin<-lapply(0:(2^n-1), function(x) head(as.integer(intToBits(x)),n))
-
+  if(parallel == FALSE){
+    list_comb <- list()
+    for(j in 1:nrow(x))
+    {
+      list_comb[[j]] <- combn(rownames(x), j, paste, collapse = " ")
+    }
+    
+    list_wght <- list()
+    for(j in 1:nrow(x))
+    {
+      list_wght[[j]] <- combn(x$w, j,sum)
+    }
+    
+    list_val <- list()
+    for(j in 1:nrow(x) )
+    {
+      list_val[[j]] <- combn(x$v, j, sum)
+    }
+    
+    vector_comb <- unlist(list_comb)
+    vector_wght <- unlist(list_wght)
+    vector_val <- round(unlist(list_val),0)
+    
+    weights_ind_cap <- which(vector_wght < W)
+    value_vald <- vector_val[weights_ind_cap]
+    maxvalid <- max(value_vald)
+    
+    valid_ind_vec <- which(vector_val == maxvalid)
+    val_cmb <- vector_comb[valid_ind_vec]
+    
+    lead_comb_list <- list(value = maxvalid, elements = as.numeric(strsplit(val_cmb, " ")[[1]]))
+  }else{
+    library(parallel)
+    no_of_cores <- detectCores() - 1
+    cluster <- makeCluster(no_of_cores)
+    clusterExport(cluster , c("x") ,envir = environment())
+    
+    list_comb <- parLapplyLB(cluster, 1:nrow(x), fun =  function(y) {
+      combn(rownames(x) , y , paste0, collapse = " ")
+    })
+    list_wght <- parLapplyLB(cluster, 1:nrow(x), fun =  function(y) {
+      combn(x$w , y, sum)
+    })
+    list_val <- parLapplyLB(cluster,1:nrow(x), fun =  function(y) { 
+      combn(x$v , y , sum)
+    })
+    
+    stopCluster(cluster)
+    
+    vector_comb <- unlist(list_comb)
+    vector_wght <- unlist(list_wght)
+    vector_val <- round(unlist(list_val),0)
+    
+    weights_ind_cap <- which(vector_wght < W)
+    value_vald <- vector_val[weights_ind_cap]
+    maxvalid <- max(value_vald)
+    
+    valid_ind_vec <- which(vector_val == maxvalid)
+    val_cmb <- vector_comb[valid_ind_vec]
+    
+    lead_comb_list <- list(value = maxvalid, elements = as.numeric(strsplit(val_cmb, " ")[[1]]))
   }
-
-  #create a data frame of 0 and 1 combinations
-
-  bin_df<-t(as.data.frame(bin))
-
-  rownames(bin_df)<-NULL
-
-  #calculate total weights and values for each combination
-
-  values<-c()
-  weights<-c()
-
-  for (i in 1:length(bin)){
-
-    values<-c(values, sum(bin[[i]]*v))
-    weights<-c(weights, sum(bin[[i]]*w))
-
-  }
-
-  new<-cbind(bin_df,values,weights)
-
-  #choose combination with maximum value given its weight is less than or equal to W of knapsack
-
-  optimal<-max(new[new[,'weights']<=W,'values'])
-
-  #derive items from combination
-
-  binary_elements<-new[new[,'values']==optimal,c(1:n)]
-
-  answer<-list(value=round(optimal,digits=0),
-               elements=c(1:n)[(binary_elements*c(1:n))!=0])
-
-  return(answer)
-
+  return(lead_comb_list)
 }
-
-
-
-
